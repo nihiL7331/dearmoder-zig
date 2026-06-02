@@ -55,7 +55,9 @@ pub fn decode(data: []const u32) !void {
             },
             0b010, 0b011 => {
                 const instr: SingleInstr = @bitCast(data[pc]);
-                std.debug.print("Single data transfer: ID={d}, L={d}, U={d}, Rn={d}, Rd={d}, OFF={d}\n", .{ instr.id, instr.l, instr.u, instr.rn, instr.rd, instr.offset });
+                const opcode = if (instr.l == 1) "LDR" else "STR";
+
+                std.debug.print("Single data transfer: ID={d}, OP={s}{s}, U={d}, Rn={d}, Rd={d}, OFF={d}\n", .{ instr.id, opcode, if (instr.b == 1) "B" else "", instr.u, instr.rn, instr.rd, instr.offset });
             },
             else => {
                 std.debug.print("Unimplemented block\n", .{});
