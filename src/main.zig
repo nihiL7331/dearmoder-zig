@@ -39,3 +39,9 @@ pub fn main(init: std.process.Init) !void {
 
     try decoder.decode(data);
 }
+
+test "decode basic instrs" {
+    // AI generated those D:
+    const test_data = [_]u32{ 0xE0810002, 0xE3A030FF, 0xE5954004, 0xE0421103, 0xEA000010 };
+    try decoder.decode(&test_data);
+}
