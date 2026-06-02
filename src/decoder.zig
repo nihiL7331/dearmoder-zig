@@ -32,6 +32,13 @@ const SingleInstr = packed struct(u32) {
     cond: u4,
 };
 
+const SingleOffset = packed struct(u12) {
+    rm: u4,
+    _: u1,
+    s_type: u2,
+    s_size: u5,
+};
+
 const data_opcodes = [_][]const u8{
     "AND", "EOR", "SUB", "RSB", "ADD", "ADC", "SBC", "RSC",
     "TST", "TEQ", "CMP", "CMN", "ORR", "MOV", "BIC", "MVN",
@@ -69,6 +76,35 @@ fn print_branch_instr(instr: BranchInstr) void {
     }
 }
 
+fn print_sdt_instr(instr: SingleInstr) void {
+    const opcode = if (instr.l == 1) "LDR" else "STR";
+
+    std.debug.print("{s}{s}{s}{s} R{d}, ", .{ opcode, conds[instr.cond], if (instr.b == 1) "B" else "", if (instr.p == 0 and instr.w == 1) "T" else "", instr.rd });
+
+    std.debug.print("[R{d}", .{instr.rn});
+
+    if (instr.p == 0) {
+        std.debug.print("]", .{});
+    }
+
+    if (instr.i == 1) {
+        const offset: SingleOffset = @bitCast(instr.offset);
+        std.debug.print(", {s}R{d}", .{ if (instr.u == 1) "" else "-", offset.rm });
+    } else {
+        std.debug.print(", #{s}{d}", .{ if (instr.u == 1) "" else "-", instr.offset });
+    }
+
+    if (instr.p == 1) {
+        std.debug.print("]", .{});
+
+        if (instr.w == 1) {
+            std.debug.print("!", .{});
+        }
+    }
+
+    std.debug.print("\n", .{});
+}
+
 pub fn decode(data: []const u32) !void {
     var pc: usize = 0;
     while (pc != data.len) : (pc += 1) {
@@ -85,9 +121,7 @@ pub fn decode(data: []const u32) !void {
             },
             0b010, 0b011 => {
                 const instr: SingleInstr = @bitCast(data[pc]);
-                const opcode = if (instr.l == 1) "LDR" else "STR";
-
-                std.debug.print("Single data transfer: ID={d}, OP={s}{s}{s}, U={d}, Rn={d}, Rd={d}, OFF={d}\n", .{ instr.id, opcode, if (instr.b == 1) "B" else "", conds[instr.cond], instr.u, instr.rn, instr.rd, instr.offset });
+                print_sdt_instr(instr);
             },
             else => {
                 std.debug.print("Unimplemented block\n", .{});
