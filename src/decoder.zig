@@ -42,6 +42,20 @@ const conds = [_][]const u8{
     "HI", "LS", "GE", "LT", "GT", "LE", "", "", // 14 (AL) prints nothing
 };
 
+fn print_data_instr(instr: DataInstr) void {
+    switch (instr.opcode) {
+        0b1000...0b1011 => {
+            std.debug.print("{s}{s} {d}, {d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn, instr.rm });
+        },
+        0b1101, 0b1111 => {
+            std.debug.print("{s}{s} {d}, {d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rm });
+        },
+        else => {
+            std.debug.print("{s}{s} {d}, {d}, {d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rn, instr.rm });
+        },
+    }
+}
+
 pub fn decode(data: []const u32) !void {
     var pc: usize = 0;
     while (pc != data.len) : (pc += 1) {
@@ -50,7 +64,7 @@ pub fn decode(data: []const u32) !void {
         switch (id) {
             0b000, 0b001 => {
                 const instr: DataInstr = @bitCast(data[pc]);
-                std.debug.print("Data processing: ID={d}, OP={s}{s}, I={d}, Rn={d}, Rd={d}, Rm={d}\n", .{ instr.id, data_opcodes[instr.opcode], conds[instr.cond], instr.i, instr.rn, instr.rd, instr.rm });
+                print_data_instr(instr);
             },
             0b101 => {
                 const instr: BranchInstr = @bitCast(data[pc]);
