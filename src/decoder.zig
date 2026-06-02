@@ -56,6 +56,19 @@ fn print_data_instr(instr: DataInstr) void {
     }
 }
 
+fn print_branch_instr(instr: BranchInstr) void {
+    const opcode = if (instr.l == 1) "BL" else "B";
+
+    const sgn_off: i32 = @as(i24, @bitCast(instr.offset));
+    const byte_off = sgn_off * 4 + 8;
+
+    if (byte_off >= 0) {
+        std.debug.print("{s}{s} .+0x{x}\n", .{ opcode, conds[instr.cond], byte_off });
+    } else {
+        std.debug.print("{s}{s} .-0x{x}\n", .{ opcode, conds[instr.cond], -byte_off });
+    }
+}
+
 pub fn decode(data: []const u32) !void {
     var pc: usize = 0;
     while (pc != data.len) : (pc += 1) {
@@ -68,9 +81,7 @@ pub fn decode(data: []const u32) !void {
             },
             0b101 => {
                 const instr: BranchInstr = @bitCast(data[pc]);
-                const opcode = if (instr.l == 1) "BL" else "B";
-
-                std.debug.print("Branch: ID={d}, OP={s}{s}, OFF={d}\n", .{ instr.id, opcode, conds[instr.cond], instr.offset });
+                print_branch_instr(instr);
             },
             0b010, 0b011 => {
                 const instr: SingleInstr = @bitCast(data[pc]);
