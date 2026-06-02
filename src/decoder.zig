@@ -38,8 +38,6 @@ const data_opcodes = [_][]const u8{
 };
 
 pub fn decode(data: []const u32) !void {
-    std.debug.print("data size: {d}\n", .{data.len});
-
     var pc: usize = 0;
     while (pc != data.len) : (pc += 1) {
         const id: u3 = @truncate((data[pc] >> 25) & 0b111);
