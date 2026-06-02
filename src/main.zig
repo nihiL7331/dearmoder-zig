@@ -13,7 +13,7 @@ fn tokenize_instrs(allocator: std.mem.Allocator, file_data: []u8) ![]u32 {
         try instrs.append(allocator, instr);
     }
 
-    return instrs.items;
+    return instrs.toOwnedSlice(allocator);
 }
 
 pub fn main(init: std.process.Init) !void {
