@@ -45,3 +45,8 @@ test "decode basic instrs" {
     const test_data = [_]u32{ 0xE0810002, 0xE3A030FF, 0xE5954004, 0xE0421103, 0xEA000010 };
     try decoder.decode(&test_data);
 }
+
+test "decode sdt instrs" {
+    const test_data = [_]u32{ 0xE5910008, 0xE5232004, 0xE4D54001, 0xE7C76008, 0xE73A910B, 0x158DC020, 0x041E0008, 0xE7C21243, 0xE4B54010, 0xE7676468 };
+    try decoder.decode(&test_data);
+}
