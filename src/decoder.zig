@@ -49,7 +49,9 @@ pub fn decode(data: []const u32) !void {
             },
             0b101 => {
                 const instr: BranchInstr = @bitCast(data[pc]);
-                std.debug.print("Branch: ID={d}, L={d}, OFF={d}\n", .{ instr.id, instr.l, instr.offset });
+                const opcode = if (instr.l == 1) "BL" else "B";
+
+                std.debug.print("Branch: ID={d}, OP={s}, OFF={d}\n", .{ instr.id, opcode, instr.offset });
             },
             0b010, 0b011 => {
                 const instr: SingleInstr = @bitCast(data[pc]);
