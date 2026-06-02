@@ -52,13 +52,13 @@ const conds = [_][]const u8{
 fn print_data_instr(instr: DataInstr) void {
     switch (instr.opcode) {
         0b1000...0b1011 => {
-            std.debug.print("{s}{s} {d}, {d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn, instr.rm });
+            std.debug.print("{s}{s} R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn, instr.rm });
         },
         0b1101, 0b1111 => {
-            std.debug.print("{s}{s} {d}, {d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rm });
+            std.debug.print("{s}{s} R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rm });
         },
         else => {
-            std.debug.print("{s}{s} {d}, {d}, {d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rn, instr.rm });
+            std.debug.print("{s}{s} R{d}, R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rn, instr.rm });
         },
     }
 }
@@ -91,7 +91,7 @@ fn print_sdt_instr(instr: SingleInstr) void {
         const offset: SingleOffset = @bitCast(instr.offset);
         std.debug.print(", {s}R{d}", .{ if (instr.u == 1) "" else "-", offset.rm });
     } else {
-        std.debug.print(", #{s}{d}", .{ if (instr.u == 1) "" else "-", instr.offset });
+        std.debug.print(", #{s}0x{x}", .{ if (instr.u == 1) "" else "-", instr.offset });
     }
 
     if (instr.p == 1) {
