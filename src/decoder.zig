@@ -37,6 +37,11 @@ const data_opcodes = [_][]const u8{
     "TST", "TEQ", "CMP", "CMN", "ORR", "MOV", "BIC", "MVN",
 };
 
+const conds = [_][]const u8{
+    "EQ", "NE", "CS", "CC", "MI", "PL", "VS", "VC",
+    "HI", "LS", "GE", "LT", "GT", "LE", "", "", // 14 (AL) prints nothing
+};
+
 pub fn decode(data: []const u32) !void {
     var pc: usize = 0;
     while (pc != data.len) : (pc += 1) {
@@ -45,19 +50,19 @@ pub fn decode(data: []const u32) !void {
         switch (id) {
             0b000, 0b001 => {
                 const instr: DataInstr = @bitCast(data[pc]);
-                std.debug.print("Data processing: ID={d}, OP={s}, I={d}, Rn={d}, Rd={d}, Rm={d}\n", .{ instr.id, data_opcodes[instr.opcode], instr.i, instr.rn, instr.rd, instr.rm });
+                std.debug.print("Data processing: ID={d}, OP={s}{s}, I={d}, Rn={d}, Rd={d}, Rm={d}\n", .{ instr.id, data_opcodes[instr.opcode], conds[instr.cond], instr.i, instr.rn, instr.rd, instr.rm });
             },
             0b101 => {
                 const instr: BranchInstr = @bitCast(data[pc]);
                 const opcode = if (instr.l == 1) "BL" else "B";
 
-                std.debug.print("Branch: ID={d}, OP={s}, OFF={d}\n", .{ instr.id, opcode, instr.offset });
+                std.debug.print("Branch: ID={d}, OP={s}{s}, OFF={d}\n", .{ instr.id, opcode, conds[instr.cond], instr.offset });
             },
             0b010, 0b011 => {
                 const instr: SingleInstr = @bitCast(data[pc]);
                 const opcode = if (instr.l == 1) "LDR" else "STR";
 
-                std.debug.print("Single data transfer: ID={d}, OP={s}{s}, U={d}, Rn={d}, Rd={d}, OFF={d}\n", .{ instr.id, opcode, if (instr.b == 1) "B" else "", instr.u, instr.rn, instr.rd, instr.offset });
+                std.debug.print("Single data transfer: ID={d}, OP={s}{s}{s}, U={d}, Rn={d}, Rd={d}, OFF={d}\n", .{ instr.id, opcode, if (instr.b == 1) "B" else "", conds[instr.cond], instr.u, instr.rn, instr.rd, instr.offset });
             },
             else => {
                 std.debug.print("Unimplemented block\n", .{});
