@@ -53,73 +53,73 @@ const s_types = [_][]const u8{
     "LSL", "LSR", "ASR", "ROR",
 };
 
-fn print_data_instr(instr: DataInstr) void {
+fn print_data_instr(writer: anytype, instr: DataInstr) !void {
     switch (instr.opcode) {
         0b1000...0b1011 => {
-            std.debug.print("{s}{s} R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn, instr.rm });
+            try writer.print("{s}{s} R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn, instr.rm });
         },
         0b1101, 0b1111 => {
-            std.debug.print("{s}{s} R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rm });
+            try writer.print("{s}{s} R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rm });
         },
         else => {
-            std.debug.print("{s}{s} R{d}, R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rn, instr.rm });
+            try writer.print("{s}{s} R{d}, R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rn, instr.rm });
         },
     }
 }
 
-fn print_branch_instr(instr: BranchInstr) void {
+fn print_branch_instr(writer: anytype, instr: BranchInstr) !void {
     const opcode = if (instr.l == 1) "BL" else "B";
 
     const sgn_off: i32 = @as(i24, @bitCast(instr.offset));
     const byte_off = sgn_off * 4 + 8;
 
     if (byte_off >= 0) {
-        std.debug.print("{s}{s} .+0x{x}\n", .{ opcode, conds[instr.cond], byte_off });
+        try writer.print("{s}{s} .+0x{x}\n", .{ opcode, conds[instr.cond], byte_off });
     } else {
-        std.debug.print("{s}{s} .-0x{x}\n", .{ opcode, conds[instr.cond], -byte_off });
+        try writer.print("{s}{s} .-0x{x}\n", .{ opcode, conds[instr.cond], -byte_off });
     }
 }
 
-fn print_sdt_instr(instr: SingleInstr) void {
+fn print_sdt_instr(writer: anytype, instr: SingleInstr) !void {
     const opcode = if (instr.l == 1) "LDR" else "STR";
 
-    std.debug.print("{s}{s}{s}{s} R{d}, ", .{ opcode, conds[instr.cond], if (instr.b == 1) "B" else "", if (instr.p == 0 and instr.w == 1) "T" else "", instr.rd });
+    try writer.print("{s}{s}{s}{s} R{d}, ", .{ opcode, conds[instr.cond], if (instr.b == 1) "B" else "", if (instr.p == 0 and instr.w == 1) "T" else "", instr.rd });
 
-    std.debug.print("[R{d}", .{instr.rn});
+    try writer.print("[R{d}", .{instr.rn});
 
     if (instr.p == 0) {
-        std.debug.print("]", .{});
+        try writer.print("]", .{});
     }
 
     if (instr.i == 1) {
         const offset: SingleOffset = @bitCast(instr.offset);
 
-        std.debug.print(", {s}R{d}, ", .{ if (instr.u == 1) "" else "-", offset.rm });
+        try writer.print(", {s}R{d}", .{ if (instr.u == 1) "" else "-", offset.rm });
         if (offset.s_size == 0) {
             if (offset.s_type == 0b11) { // shift_type == "ROR"
-                std.debug.print("RRX", .{});
+                try writer.print(", RRX", .{});
             } else if (offset.s_type != 0b00) { // shift_type != "LSL"
-                std.debug.print("{s} #32", .{s_types[offset.s_type]});
+                try writer.print(", {s} #32", .{s_types[offset.s_type]});
             }
         } else {
-            std.debug.print("{s} #{d}", .{ s_types[offset.s_type], offset.s_size });
+            try writer.print(", {s} #{d}", .{ s_types[offset.s_type], offset.s_size });
         }
     } else {
-        std.debug.print(", #{s}0x{x}", .{ if (instr.u == 1) "" else "-", instr.offset });
+        try writer.print(", #{s}0x{x}", .{ if (instr.u == 1) "" else "-", instr.offset });
     }
 
     if (instr.p == 1) {
-        std.debug.print("]", .{});
+        try writer.print("]", .{});
 
         if (instr.w == 1) {
-            std.debug.print("!", .{});
+            try writer.print("!", .{});
         }
     }
 
-    std.debug.print("\n", .{});
+    try writer.print("\n", .{});
 }
 
-pub fn decode(data: []const u32) !void {
+pub fn decode(writer: anytype, data: []const u32) !void {
     var pc: usize = 0;
     while (pc != data.len) : (pc += 1) {
         const id: u3 = @truncate((data[pc] >> 25) & 0b111);
@@ -127,18 +127,18 @@ pub fn decode(data: []const u32) !void {
         switch (id) {
             0b000, 0b001 => {
                 const instr: DataInstr = @bitCast(data[pc]);
-                print_data_instr(instr);
+                try print_data_instr(writer, instr);
             },
             0b101 => {
                 const instr: BranchInstr = @bitCast(data[pc]);
-                print_branch_instr(instr);
+                try print_branch_instr(writer, instr);
             },
             0b010, 0b011 => {
                 const instr: SingleInstr = @bitCast(data[pc]);
-                print_sdt_instr(instr);
+                try print_sdt_instr(writer, instr);
             },
             else => {
-                std.debug.print("Unimplemented block\n", .{});
+                try writer.print("Unimplemented block\n", .{});
             },
         }
     }

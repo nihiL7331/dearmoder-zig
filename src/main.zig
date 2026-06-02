@@ -37,13 +37,14 @@ pub fn main(init: std.process.Init) !void {
 
     const data: []u32 = try tokenize_instrs(arena, file_data);
 
-    try decoder.decode(data);
-}
+    const stdout_file = std.Io.File.stdout();
+    var buf: [4096]u8 = undefined;
+    const w = stdout_file.writer(init.io, &buf);
+    var stdout = w.interface;
 
-test "decode basic instrs" {
-    // AI generated those D:
-    const test_data = [_]u32{ 0xE0810002, 0xE3A030FF, 0xE5954004, 0xE0421103, 0xEA000010 };
-    try decoder.decode(&test_data);
+    try decoder.decode(&stdout, data);
+
+    try stdout.flush();
 }
 
 test "decode sdt instrs" {
