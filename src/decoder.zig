@@ -49,6 +49,10 @@ const conds = [_][]const u8{
     "HI", "LS", "GE", "LT", "GT", "LE", "", "", // 14 (AL) prints nothing
 };
 
+const s_types = [_][]const u8{
+    "LSL", "LSR", "ASR", "ROR",
+};
+
 fn print_data_instr(instr: DataInstr) void {
     switch (instr.opcode) {
         0b1000...0b1011 => {
@@ -89,7 +93,17 @@ fn print_sdt_instr(instr: SingleInstr) void {
 
     if (instr.i == 1) {
         const offset: SingleOffset = @bitCast(instr.offset);
-        std.debug.print(", {s}R{d}", .{ if (instr.u == 1) "" else "-", offset.rm });
+
+        std.debug.print(", {s}R{d}, ", .{ if (instr.u == 1) "" else "-", offset.rm });
+        if (offset.s_size == 0) {
+            if (offset.s_type == 0b11) { // shift_type == "ROR"
+                std.debug.print("RRX", .{});
+            } else if (offset.s_type != 0b00) { // shift_type != "LSL"
+                std.debug.print("{s} #32", .{s_types[offset.s_type]});
+            }
+        } else {
+            std.debug.print("{s} #{d}", .{ s_types[offset.s_type], offset.s_size });
+        }
     } else {
         std.debug.print(", #{s}0x{x}", .{ if (instr.u == 1) "" else "-", instr.offset });
     }
