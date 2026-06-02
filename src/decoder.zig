@@ -32,6 +32,11 @@ const SingleInstr = packed struct(u32) {
     cond: u4,
 };
 
+const data_opcodes = [_][]const u8{
+    "AND", "EOR", "SUB", "RSB", "ADD", "ADC", "SBC", "RSC",
+    "TST", "TEQ", "CMP", "CMN", "ORR", "MOV", "BIC", "MVN",
+};
+
 pub fn decode(data: []const u32) !void {
     std.debug.print("data size: {d}\n", .{data.len});
 
@@ -42,7 +47,7 @@ pub fn decode(data: []const u32) !void {
         switch (id) {
             0b000, 0b001 => {
                 const instr: DataInstr = @bitCast(data[pc]);
-                std.debug.print("Data processing: ID={d}, OP={x}, I={d}, Rn={d}, Rd={d}, Rm={d}\n", .{ instr.id, instr.opcode, instr.i, instr.rn, instr.rd, instr.rm });
+                std.debug.print("Data processing: ID={d}, OP={s}, I={d}, Rn={d}, Rd={d}, Rm={d}\n", .{ instr.id, data_opcodes[instr.opcode], instr.i, instr.rn, instr.rd, instr.rm });
             },
             0b101 => {
                 const instr: BranchInstr = @bitCast(data[pc]);
