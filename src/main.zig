@@ -47,6 +47,29 @@ pub fn main(init: std.process.Init) !void {
     try stdout.flush();
 }
 
+test "decode data instrs" {
+    var buf: [1024]u8 = undefined;
+    var w: std.Io.Writer = .fixed(&buf);
+
+    const test_data = [_]u32{ 0xE0810002, 0xE24430FF, 0xE1550006, 0xE1A07008, 0x120A9005, 0xE19CB00D, 0xE3E0E00A, 0x00610002, 0xE3330055, 0x21D54006 };
+    const expected =
+        \\ADD R0, R1, R2
+        \\SUB R3, R4, #0xff
+        \\CMP R5, R6
+        \\MOV R7, R8
+        \\ANDNE R9, R10, #0x5
+        \\ORRS R11, R12, R13
+        \\MVN R14, #0xa
+        \\RSBEQ R0, R1, R2
+        \\TEQ R3, #0x55
+        \\BICCSS R4, R5, R6
+    ;
+
+    try decoder.decode(&w, &test_data);
+
+    try std.testing.expectEqualStrings(expected, buf[0..expected.len]);
+}
+
 test "decode sdt instrs" {
     var buf: [1024]u8 = undefined;
     var w: std.Io.Writer = .fixed(&buf);
