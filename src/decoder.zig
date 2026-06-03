@@ -1,165 +1,54 @@
 const std = @import("std");
 
-const DataInstr = packed struct(u32) {
-    rm: u12, // operand 2: the second value, reg/num
-    rd: u4, // dest reg
-    rn: u4, // first src reg
-    s: u1, // set cond flags
-    opcode: u4,
-    i: u1, // immediate flag
-    id: u2,
-    cond: u4,
-};
+const arm = @import("arm.zig");
+const thumb = @import("thumb.zig");
 
-const BranchInstr = packed struct(u32) {
-    offset: u24, // how far fw/bw to jump
-    l: u1, // link bit
-    id: u3,
-    cond: u4,
-};
+pub const InstrMode = enum { Arm, Thumb };
 
-const SingleInstr = packed struct(u32) {
-    offset: u12, // offset to apply to the ptr
-    rd: u4, // src/dest reg for the ptr
-    rn: u4, // base register
-    l: u1, // load/store
-    w: u1, // write-back
-    b: u1, // byte/word
-    u: u1, // up/down
-    p: u1, // pre/post indexing
-    i: u1, // immediate offset flag
-    id: u2,
-    cond: u4,
-};
+pub const Decoder = struct {
+    const Self = @This();
 
-const SingleOffset = packed struct(u12) {
-    rm: u4,
-    _: u1,
-    s_type: u2,
-    s_size: u5,
-};
+    mode: InstrMode,
+    pc: u32,
 
-const data_opcodes = [_][]const u8{
-    "AND", "EOR", "SUB", "RSB", "ADD", "ADC", "SBC", "RSC",
-    "TST", "TEQ", "CMP", "CMN", "ORR", "MOV", "BIC", "MVN",
-};
-
-const branch_opcodes = [_][]const u8{ "B", "BL" };
-
-const sdt_opcodes = [_][]const u8{ "STR", "LDR" };
-
-const conds = [_][]const u8{
-    "EQ", "NE", "CS", "CC", "MI", "PL", "VS", "VC",
-    "HI", "LS", "GE", "LT", "GT", "LE", "", "", // 14 (AL) prints nothing
-};
-
-const s_types = [_][]const u8{
-    "LSL", "LSR", "ASR", "ROR",
-};
-
-const s_suffix = [_][]const u8{ "", "S" };
-
-const u_prefix = [_][]const u8{ "-", "" };
-
-const b_suffix = [_][]const u8{ "", "B" };
-
-fn printDataInstr(writer: anytype, instr: DataInstr) !void {
-    switch (instr.opcode) {
-        0b1000...0b1011 => {
-            try writer.print("{s}{s} R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn });
-        },
-        0b1101, 0b1111 => {
-            try writer.print("{s}{s}{s} R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], s_suffix[instr.s], instr.rd });
-        },
-        else => {
-            try writer.print("{s}{s}{s} R{d}, R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], s_suffix[instr.s], instr.rd, instr.rn });
-        },
+    pub fn init(pc: u32, mode: InstrMode) Self {
+        return .{
+            .mode = mode,
+            .pc = pc,
+        };
     }
 
-    if (instr.i == 1) {
-        const imm8: u32 = instr.rm & 0xFF;
-        const rot: u5 = @as(u5, @truncate(instr.rm >> 8)) * 2;
+    pub fn decodeBlock(self: *Self, writer: anytype, data: []const u8) !void {
+        while (true) {
+            switch (self.mode) {
+                .Arm => {
+                    const instr_bytes = data[self.pc .. self.pc + 4];
+                    const instr = std.mem.readInt(u32, instr_bytes[0..4], .little);
 
-        const actual_val = std.math.rotr(u32, imm8, rot);
-        try writer.print("#0x{x}\n", .{actual_val});
-    } else {
-        try writer.print("R{d}\n", .{instr.rm});
-    }
-}
+                    self.pc += 4;
 
-fn printBranchInstr(writer: anytype, instr: BranchInstr) !void {
-    const opcode = branch_opcodes[instr.l];
-
-    const sgn_off: i32 = @as(i24, @bitCast(instr.offset));
-    const byte_off = sgn_off * 4 + 8;
-
-    if (byte_off >= 0) {
-        try writer.print("{s}{s} .+0x{x}\n", .{ opcode, conds[instr.cond], byte_off });
-    } else {
-        try writer.print("{s}{s} .-0x{x}\n", .{ opcode, conds[instr.cond], -byte_off });
-    }
-}
-
-fn printSdtInstr(writer: anytype, instr: SingleInstr) !void {
-    const opcode = sdt_opcodes[instr.l];
-
-    try writer.print("{s}{s}{s}{s} R{d}, ", .{ opcode, conds[instr.cond], b_suffix[instr.b], if (instr.p == 0 and instr.w == 1) "T" else "", instr.rd });
-
-    try writer.print("[R{d}", .{instr.rn});
-
-    if (instr.p == 0) {
-        try writer.print("]", .{});
-    }
-
-    if (instr.i == 1) {
-        const offset: SingleOffset = @bitCast(instr.offset);
-
-        try writer.print(", {s}R{d}", .{ u_prefix[instr.u], offset.rm });
-        if (offset.s_size == 0) {
-            if (offset.s_type == 0b11) { // shift_type == "ROR"
-                try writer.print(", RRX", .{});
-            } else if (offset.s_type != 0b00) { // shift_type != "LSL"
-                try writer.print(", {s} #32", .{s_types[offset.s_type]});
+                    if (try self.decodeArmInstr(writer, instr)) break;
+                },
+                .Thumb => {
+                    std.debug.print("unimplemented", .{});
+                },
             }
-        } else {
-            try writer.print(", {s} #{d}", .{ s_types[offset.s_type], offset.s_size });
-        }
-    } else {
-        try writer.print(", #{s}0x{x}", .{ u_prefix[instr.u], instr.offset });
-    }
-
-    if (instr.p == 1) {
-        try writer.print("]", .{});
-
-        if (instr.w == 1) {
-            try writer.print("!", .{});
         }
     }
 
-    try writer.print("\n", .{});
-}
+    fn decodeArmInstr(self: *Self, writer: anytype, instr: u32) !bool {
+        if (try arm.decodeInstr(writer, instr)) |rel_off| {
+            const target_addr = self.pc +% @as(u32, @bitCast(rel_off));
 
-pub fn decode(writer: anytype, data: []const u32) !void {
-    var pc: usize = 0;
-    while (pc != data.len) : (pc += 1) {
-        const id: u3 = @truncate((data[pc] >> 25) & 0b111);
+            self.pc = target_addr & ~@as(u32, 1);
 
-        switch (id) {
-            0b000, 0b001 => {
-                const instr: DataInstr = @bitCast(data[pc]);
-                try printDataInstr(writer, instr);
-            },
-            0b101 => {
-                const instr: BranchInstr = @bitCast(data[pc]);
-                try printBranchInstr(writer, instr);
-            },
-            0b010, 0b011 => {
-                const instr: SingleInstr = @bitCast(data[pc]);
-                try printSdtInstr(writer, instr);
-            },
-            else => {
-                try writer.print("Unimplemented block\n", .{});
-            },
+            if (target_addr & 1 != 0) {
+                self.mode = .Thumb;
+            }
+
+            return true;
         }
+
+        return false;
     }
-}
+};

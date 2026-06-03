@@ -36,13 +36,15 @@ pub fn main(init: std.process.Init) !void {
     );
 
     const data: []u32 = try tokenizeInstrs(arena, file_data);
+    const byte_data = std.mem.sliceAsBytes(&data);
 
     const stdout_file = std.Io.File.stdout();
     var buf: [4096]u8 = undefined;
     const w = stdout_file.writer(init.io, &buf);
     var stdout = w.interface;
 
-    try decoder.decode(&stdout, data);
+    var dec = decoder.Decoder.init(0, .Arm);
+    try dec.decodeBlock(&w, byte_data);
 
     try stdout.flush();
 }
