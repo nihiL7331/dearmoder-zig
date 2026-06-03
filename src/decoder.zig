@@ -56,14 +56,20 @@ const s_types = [_][]const u8{
 fn print_data_instr(writer: anytype, instr: DataInstr) !void {
     switch (instr.opcode) {
         0b1000...0b1011 => {
-            try writer.print("{s}{s} R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn, instr.rm });
+            try writer.print("{s}{s} R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn });
         },
         0b1101, 0b1111 => {
-            try writer.print("{s}{s} R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rm });
+            try writer.print("{s}{s}{s} R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], if (instr.s == 1) "S" else "", instr.rd });
         },
         else => {
-            try writer.print("{s}{s} R{d}, R{d}, R{d}\n", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rd, instr.rn, instr.rm });
+            try writer.print("{s}{s}{s} R{d}, R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], if (instr.s == 1) "S" else "", instr.rd, instr.rn });
         },
+    }
+
+    if (instr.i == 1) {
+        try writer.print("#0x{x}\n", .{instr.rm});
+    } else {
+        try writer.print("R{d}\n", .{instr.rm});
     }
 }
 
