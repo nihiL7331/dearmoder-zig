@@ -1,6 +1,6 @@
 # dearmoder-zig
 
-An ARMv4 data processing decoder written in Zig.
+An ARMv4T data processing decoder written in Zig.
 
 ## Usage
 
