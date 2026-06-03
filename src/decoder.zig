@@ -77,7 +77,11 @@ fn printDataInstr(writer: anytype, instr: DataInstr) !void {
     }
 
     if (instr.i == 1) {
-        try writer.print("#0x{x}\n", .{instr.rm});
+        const imm8: u32 = instr.rm & 0xFF;
+        const rot: u5 = @as(u5, @truncate(instr.rm >> 8)) * 2;
+
+        const actual_val = std.math.rotr(u32, imm8, rot);
+        try writer.print("#0x{x}\n", .{actual_val});
     } else {
         try writer.print("R{d}\n", .{instr.rm});
     }
