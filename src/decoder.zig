@@ -53,7 +53,7 @@ const s_types = [_][]const u8{
     "LSL", "LSR", "ASR", "ROR",
 };
 
-fn print_data_instr(writer: anytype, instr: DataInstr) !void {
+fn printDataInstr(writer: anytype, instr: DataInstr) !void {
     switch (instr.opcode) {
         0b1000...0b1011 => {
             try writer.print("{s}{s} R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn });
@@ -73,7 +73,7 @@ fn print_data_instr(writer: anytype, instr: DataInstr) !void {
     }
 }
 
-fn print_branch_instr(writer: anytype, instr: BranchInstr) !void {
+fn printBranchInstr(writer: anytype, instr: BranchInstr) !void {
     const opcode = if (instr.l == 1) "BL" else "B";
 
     const sgn_off: i32 = @as(i24, @bitCast(instr.offset));
@@ -86,7 +86,7 @@ fn print_branch_instr(writer: anytype, instr: BranchInstr) !void {
     }
 }
 
-fn print_sdt_instr(writer: anytype, instr: SingleInstr) !void {
+fn printSdtInstr(writer: anytype, instr: SingleInstr) !void {
     const opcode = if (instr.l == 1) "LDR" else "STR";
 
     try writer.print("{s}{s}{s}{s} R{d}, ", .{ opcode, conds[instr.cond], if (instr.b == 1) "B" else "", if (instr.p == 0 and instr.w == 1) "T" else "", instr.rd });
@@ -133,15 +133,15 @@ pub fn decode(writer: anytype, data: []const u32) !void {
         switch (id) {
             0b000, 0b001 => {
                 const instr: DataInstr = @bitCast(data[pc]);
-                try print_data_instr(writer, instr);
+                try printDataInstr(writer, instr);
             },
             0b101 => {
                 const instr: BranchInstr = @bitCast(data[pc]);
-                try print_branch_instr(writer, instr);
+                try printBranchInstr(writer, instr);
             },
             0b010, 0b011 => {
                 const instr: SingleInstr = @bitCast(data[pc]);
-                try print_sdt_instr(writer, instr);
+                try printSdtInstr(writer, instr);
             },
             else => {
                 try writer.print("Unimplemented block\n", .{});

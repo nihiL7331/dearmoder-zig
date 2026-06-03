@@ -3,7 +3,7 @@ const Io = std.Io;
 
 const decoder = @import("decoder.zig");
 
-fn tokenize_instrs(allocator: std.mem.Allocator, file_data: []u8) ![]u32 {
+fn tokenizeInstrs(allocator: std.mem.Allocator, file_data: []u8) ![]u32 {
     var instrs: std.ArrayList(u32) = .empty;
 
     var it = std.mem.tokenizeAny(u8, file_data, "\r\n ");
@@ -35,7 +35,7 @@ pub fn main(init: std.process.Init) !void {
         Io.Limit.unlimited,
     );
 
-    const data: []u32 = try tokenize_instrs(arena, file_data);
+    const data: []u32 = try tokenizeInstrs(arena, file_data);
 
     const stdout_file = std.Io.File.stdout();
     var buf: [4096]u8 = undefined;
@@ -86,7 +86,41 @@ test "decode sdt instrs" {
         \\STRB R1, [R2, R3, ASR #4]
         \\LDRT R4, [R5], #0x10
         \\STRB R6, [R7, -R8, ROR #8]!
-        \\
+    ;
+
+    try decoder.decode(&w, &test_data);
+
+    try std.testing.expectEqualStrings(expected, buf[0..expected.len]);
+}
+
+test "decode branch instrs" {
+    var buf: [1024]u8 = undefined;
+    var w: std.Io.Writer = .fixed(&buf);
+
+    const test_data = [_]u32{
+        0xEA000001,
+        0xEB000010,
+        0x0AFFFFFC,
+        0x1BFFFFF6,
+        0x3A000100,
+        0x4B000000,
+        0xCAFFFFFE,
+        0xDAFFFF00,
+        0x6B00002A,
+        0xEAFFFFFD,
+    };
+
+    const expected =
+        \\B .+0xc
+        \\BL .+0x48
+        \\BEQ .-0x8
+        \\BLNE .-0x20
+        \\BCC .+0x408
+        \\BLMI .+0x8
+        \\BGT .+0x0
+        \\BLE .-0x3f8
+        \\BLVS .+0xb0
+        \\B .-0x4
     ;
 
     try decoder.decode(&w, &test_data);
