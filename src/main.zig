@@ -43,8 +43,10 @@ pub fn main(init: std.process.Init) !void {
     const w = stdout_file.writer(init.io, &buf);
     var stdout = w.interface;
 
-    var dec = decoder.Decoder.init(0, .Arm);
-    try dec.decodeBlock(&w, byte_data);
+    var dec = decoder.Decoder.init(arena);
+    defer dec.deinit();
+
+    try dec.decodeAll(&w, byte_data, 0x0, .Arm);
 
     try stdout.flush();
 }

@@ -18,6 +18,13 @@ const BranchInstr = packed struct(u32) {
     cond: u4,
 };
 
+// returned by decodeInstr to handle
+// paths for recursive descent
+pub const BranchInfo = struct {
+    offset: i32,
+    fall_reach: bool, // whether fallthrough is reachable (conditionals)
+};
+
 const SingleInstr = packed struct(u32) {
     offset: u12, // offset to apply to the ptr
     rd: u4, // src/dest reg for the ptr
@@ -141,7 +148,7 @@ fn printSdtInstr(writer: anytype, instr: SingleInstr) !void {
     try writer.print("\n", .{});
 }
 
-pub fn decodeInstr(writer: anytype, instr: u32) !?i32 {
+pub fn decodeInstr(writer: anytype, instr: u32) !?BranchInfo {
     const id: u3 = @truncate((instr >> 25) & 0b111);
 
     switch (id) {
@@ -152,7 +159,18 @@ pub fn decodeInstr(writer: anytype, instr: u32) !?i32 {
         },
         0b101 => {
             const branch_instr: BranchInstr = @bitCast(instr);
-            return try printBranchInstr(writer, branch_instr);
+            const is_cond = branch_instr.cond != 0b1110; // cond != "AL"
+
+            // fallthrough is reachable if it's conditional
+            // or it's BL (a function call)
+            const fall_reach = is_cond or (branch_instr.l == 1);
+
+            const offset = try printBranchInstr(writer, branch_instr);
+
+            return BranchInfo{
+                .offset = offset,
+                .fall_reach = fall_reach,
+            };
         },
         0b010, 0b011 => {
             const sdt_instr: SingleInstr = @bitCast(instr);
