@@ -44,6 +44,10 @@ const data_opcodes = [_][]const u8{
     "TST", "TEQ", "CMP", "CMN", "ORR", "MOV", "BIC", "MVN",
 };
 
+const branch_opcodes = [_][]const u8{ "B", "BL" };
+
+const sdt_opcodes = [_][]const u8{ "STR", "LDR" };
+
 const conds = [_][]const u8{
     "EQ", "NE", "CS", "CC", "MI", "PL", "VS", "VC",
     "HI", "LS", "GE", "LT", "GT", "LE", "", "", // 14 (AL) prints nothing
@@ -53,16 +57,22 @@ const s_types = [_][]const u8{
     "LSL", "LSR", "ASR", "ROR",
 };
 
+const s_suffix = [_][]const u8{ "", "S" };
+
+const u_prefix = [_][]const u8{ "-", "" };
+
+const b_suffix = [_][]const u8{ "", "B" };
+
 fn printDataInstr(writer: anytype, instr: DataInstr) !void {
     switch (instr.opcode) {
         0b1000...0b1011 => {
             try writer.print("{s}{s} R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], instr.rn });
         },
         0b1101, 0b1111 => {
-            try writer.print("{s}{s}{s} R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], if (instr.s == 1) "S" else "", instr.rd });
+            try writer.print("{s}{s}{s} R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], s_suffix[instr.s], instr.rd });
         },
         else => {
-            try writer.print("{s}{s}{s} R{d}, R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], if (instr.s == 1) "S" else "", instr.rd, instr.rn });
+            try writer.print("{s}{s}{s} R{d}, R{d}, ", .{ data_opcodes[instr.opcode], conds[instr.cond], s_suffix[instr.s], instr.rd, instr.rn });
         },
     }
 
@@ -74,7 +84,7 @@ fn printDataInstr(writer: anytype, instr: DataInstr) !void {
 }
 
 fn printBranchInstr(writer: anytype, instr: BranchInstr) !void {
-    const opcode = if (instr.l == 1) "BL" else "B";
+    const opcode = branch_opcodes[instr.l];
 
     const sgn_off: i32 = @as(i24, @bitCast(instr.offset));
     const byte_off = sgn_off * 4 + 8;
@@ -87,9 +97,9 @@ fn printBranchInstr(writer: anytype, instr: BranchInstr) !void {
 }
 
 fn printSdtInstr(writer: anytype, instr: SingleInstr) !void {
-    const opcode = if (instr.l == 1) "LDR" else "STR";
+    const opcode = sdt_opcodes[instr.l];
 
-    try writer.print("{s}{s}{s}{s} R{d}, ", .{ opcode, conds[instr.cond], if (instr.b == 1) "B" else "", if (instr.p == 0 and instr.w == 1) "T" else "", instr.rd });
+    try writer.print("{s}{s}{s}{s} R{d}, ", .{ opcode, conds[instr.cond], b_suffix[instr.b], if (instr.p == 0 and instr.w == 1) "T" else "", instr.rd });
 
     try writer.print("[R{d}", .{instr.rn});
 
@@ -100,7 +110,7 @@ fn printSdtInstr(writer: anytype, instr: SingleInstr) !void {
     if (instr.i == 1) {
         const offset: SingleOffset = @bitCast(instr.offset);
 
-        try writer.print(", {s}R{d}", .{ if (instr.u == 1) "" else "-", offset.rm });
+        try writer.print(", {s}R{d}", .{ u_prefix[instr.u], offset.rm });
         if (offset.s_size == 0) {
             if (offset.s_type == 0b11) { // shift_type == "ROR"
                 try writer.print(", RRX", .{});
@@ -111,7 +121,7 @@ fn printSdtInstr(writer: anytype, instr: SingleInstr) !void {
             try writer.print(", {s} #{d}", .{ s_types[offset.s_type], offset.s_size });
         }
     } else {
-        try writer.print(", #{s}0x{x}", .{ if (instr.u == 1) "" else "-", instr.offset });
+        try writer.print(", #{s}0x{x}", .{ u_prefix[instr.u], instr.offset });
     }
 
     if (instr.p == 1) {
