@@ -3,11 +3,10 @@ const std = @import("std");
 const arm = @import("arm.zig");
 const thumb = @import("thumb.zig");
 
-pub const InstrMode = enum { Arm, Thumb };
-
 pub const Decoder = struct {
     const Self = @This();
 
+    const InstrMode = enum { Arm, Thumb };
     mode: InstrMode,
     pc: u32,
 
